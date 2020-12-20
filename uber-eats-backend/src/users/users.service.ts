@@ -1,13 +1,19 @@
 import {InjectRepository} from "@nestjs/typeorm";
 import {Repository} from "typeorm";
-import {User} from "./entities/user.entity";
 import {Injectable} from "@nestjs/common";
+import {User} from "./entities/user.entity";
 import {CreateAccountInput} from "./dtos/create-account.dto";
 import {LoginInput} from "./dtos/login.dto";
+import {JwtService} from "../jwt/jwt.service";
 
 @Injectable()
 export class UsersService {
-	constructor(@InjectRepository(User) private readonly users: Repository<User>) {}
+	constructor(
+		@InjectRepository(User) private readonly users: Repository<User>,
+		private readonly jwtService: JwtService,
+	) {
+
+	}
 
 	async createAccount({ email, password, role }: CreateAccountInput): Promise<{ok: boolean; error?: string}> {
 		// 데이터 베이스에 존재하지 않는 이메일이 있는지 확인
@@ -40,10 +46,15 @@ export class UsersService {
 			if (!passwordCorrect) {
 				return {ok: false, error: '패스워드가 틀립니다.'};
 			}
-			return {ok: true, token: '토큰생성이닷!!!'}
+			const token = this.jwtService.sign(user.id);
+			return {ok: true, token}
 		} catch (error) {
 			return {ok: false, error};
 		}
+	}
+
+	async findById(id: number): Promise<User> {
+		return this.users.findOne({id})
 	}
 }
 

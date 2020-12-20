@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
+import {MiddlewareConsumer, Module, NestModule, RequestMethod} from '@nestjs/common';
 import * as Joi from 'joi';
 import {ConfigModule} from '@nestjs/config';
 import {GraphQLModule} from "@nestjs/graphql";
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { RestaurantsModule } from './restaurants/restaurants.module';
-import {Restaurant} from "./restaurants/entities/restaurants.entity";
+import {TypeOrmModule} from '@nestjs/typeorm';
 import {User} from "./users/entities/user.entity";
 import {UsersModule} from "./users/users.module";
+import {JwtModule} from './jwt/jwt.module';
+import {CommoModule} from "./common/commo.module";
+import {JwtMiddleware} from "./jwt/jwt.middleware";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import {UsersModule} from "./users/users.module";
         DB_USERNAME: Joi.string().required(),
         DB_PASSWORD: Joi.string().required(),
         DB_NAME: Joi.string().required(),
+        SECRET_KEY: Joi.string().required(),
       })
     }),
     TypeOrmModule.forRoot({
@@ -36,10 +38,22 @@ import {UsersModule} from "./users/users.module";
     }),
     GraphQLModule.forRoot({
       autoSchemaFile: true,
+      context: ({req}) => ({user: req['user']}),
+    }),
+    JwtModule.forRoot({
+      privatekey: process.env.SECRET_KEY
     }),
     UsersModule,
+    CommoModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule{
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(JwtMiddleware).forRoutes({
+      path: '*',
+      method: RequestMethod.ALL,
+    })
+  }
+}
